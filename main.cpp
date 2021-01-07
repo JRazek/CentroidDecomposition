@@ -122,6 +122,8 @@ struct CentroidDecomposition{
             if(e != root->centroidParentPath){
                 Node * another = (e->n1 != root ? e->n1 : e->n2);
                 eulerTour(another, eulerTourOrder, level + 1);
+                root->lastEuler = eulerTourOrder.size();
+                eulerTourOrder.push_back(root);
             }
         }
     };
@@ -210,6 +212,7 @@ int main() {
     set<int> visited;
     CentroidDecomposition::findProperties(centroidRoot, sp, visited);
 
+    cout<<CentroidDecomposition::getPath(nodes[9], nodes[7], sp);
     cout<<"";
     return 0;
 }
