@@ -4,6 +4,8 @@ using namespace std;
 
 
 struct Node;
+
+
 struct Edge{
     const int id;
     int cost;
@@ -37,6 +39,38 @@ struct Node{
 
     Node(int id, int objectType): id(id), objectType(objectType){};
     Node(int id): id(id){};
+};
+struct SparseTable{
+    vector<vector<Node *>> tab;
+
+    SparseTable(const vector<Node *> &data){
+        int height = ceil(log2(data.size()));
+        //first row
+        tab.emplace_back();
+        for(int i = 0; i < data.size(); i++){
+            tab[0].push_back(data[i]);
+        }
+        for(int i = 1; i < height; i ++){
+            tab.emplace_back();
+            for(int j = 0 ; j < data.size() - pow(2, i) + 1; j ++){
+                int minRange = j, maxRange = j + pow(2, i) - 1;
+                Node * min1 = minRangeQuery(j, j + pow(2, i - 1) - 1);
+                Node * min2 = minRangeQuery(j + pow(2, i - 1), maxRange);
+                tab.back().push_back((min1->level < min2->level ? min1 : min2));
+            }
+        }
+    }
+
+    Node * minRangeQuery(int min, int max) const{
+        if(min > max){
+            int tmp = max;
+            max = min;
+            min = tmp;
+        }
+        int y = log2(max - min + 1);
+        int x1 = min, x2 = max - pow(2, y) + 1;
+        return (tab[y][x1]->level < tab[y][x2]->level ? tab[y][x1] : tab[y][x2]);
+    }
 };
 struct CentroidDecomposition{
     //decompose the graph, recurrent function
@@ -76,14 +110,15 @@ struct CentroidDecomposition{
     }
 
     //fills the order of the euler traversal of the tree. ON THE CENTROID!
-    static void eulerTour(Node * root, vector<Node *> &eulerTourOrder){
+    static void eulerTour(Node * root, vector<Node *> &eulerTourOrder, int level = 0){
         root->firstEuler = eulerTourOrder.size();
         root->lastEuler = eulerTourOrder.size();
+        root->level = level;
         eulerTourOrder.push_back(root);
         for(auto e : root->centroidConnections){
             if(e != root->centroidParentPath){
                 Node * another = (e->n1 != root ? e->n1 : e->n2);
-                eulerTour(another, eulerTourOrder);
+                eulerTour(another, eulerTourOrder, level + 1);
             }
         }
     };
@@ -102,40 +137,27 @@ struct CentroidDecomposition{
         root->subTreeSize = sum;
         return sum;
     }
-};
 
-struct SparseTable{
-    vector<vector<Node *>> tab;
+    static bool isAncestor(const Node * const n1, const Node * const n2, const SparseTable &sp){
+        return (sp.minRangeQuery(n1->firstEuler, n2->lastEuler) == n1);
+        //checks if n1 is an ancestor of n2
+    }
 
-    SparseTable(const vector<Node *> &data){
-        int height = ceil(log2(data.size()));
-        //first row
-        tab.emplace_back();
-        for(int i = 0; i < data.size(); i++){
-            tab[0].push_back(data[i]);
-        }
-        for(int i = 1; i < height; i ++){
-            tab.emplace_back();
-            for(int j = 0 ; j < data.size() - pow(2, i) + 1; j ++){
-                int minRange = j, maxRange = j + pow(2, i) - 1;
-                Node * min1 = minRangeQuery(j, j + pow(2, i - 1) - 1);
-                Node * min2 = minRangeQuery(j + pow(2, i - 1), maxRange);
-                tab.back().push_back((min1->level < min2->level ? min1 : min2));
+    //gets all necessary properties - way from node to its root, occurrences of some type on its way
+    static void findProperties(Node * root){
+        for(auto e : root->centroidConnections){
+            if(e != root->centroidParentPath){
+                Node * another = (e->n1 != root ? e->n1 : e->n2);
+                findProperties(another);
             }
         }
     }
+    static void propagateProperties(Node * n, Node * const root, long currentPath){
 
-    Node * minRangeQuery(int min, int max) const{
-        if(min > max){
-            int tmp = max;
-            max = min;
-            min = tmp;
-        }
-        int y = log2(max - min + 1);
-        int x1 = min, x2 = max - pow(2, y) + 1;
-        return (tab[y][x1]->level < tab[y][x2]->level ? tab[y][x1] : tab[y][x2]);
     }
+
 };
+
 
 
 int main() {
