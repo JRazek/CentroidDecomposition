@@ -147,23 +147,31 @@ struct CentroidDecomposition{
     }
 
     //gets all necessary properties - way from node to its root, occurrences of some type on its way
-    static void findProperties(Node * root, const SparseTable &sp){
+    static void findProperties(Node * root, const SparseTable &sp, set<int> &visited){
+        visited.insert(root->id);
+        propagateProperties(root, root, sp, visited, nullptr, 0);
         for(auto e : root->centroidConnections){
             if(e != root->centroidParentPath){
                 Node * another = (e->n1 != root ? e->n1 : e->n2);
-                findProperties(another, sp);
+                findProperties(another, sp, visited);
             }
         }
     }
-    static void propagateProperties(Node * n, Node * const root, const SparseTable &sp, long currentPath){
+
+    static long getPath(Node * const n1, Node * const n2, const SparseTable &sp){
+        Node * lca = sp.minRangeQuery(n1->firstEuler, n2->lastEuler);
+        return n1->parentsPathCosts[lca] + n2->parentsPathCosts[lca];
+    }
+private:
+    static void propagateProperties(Node * n, Node * const root, const SparseTable &sp, set<int> &visited, Edge * comingFrom, long currentPathCost){
+        n->parentsPathCosts[root] = currentPathCost;
         for(auto e : n->connections){
-            Node * another = (e->n1 != root ? e->n1 : e->n2);
-            if(!isAncestor(another, root, sp)){
-
+            Node * another = (e->n1 != n ? e->n1 : e->n2);
+            if(e != comingFrom && visited.find(another->id) == visited.end()){
+                propagateProperties(another, root, sp, visited, e, currentPathCost + e->cost);
             }
         }
     }
-
 };
 
 
@@ -197,6 +205,10 @@ int main() {
     vector<Node *> eulerTour;
     CentroidDecomposition::eulerTour(centroidRoot, eulerTour);
 
+    SparseTable sp = SparseTable(eulerTour);
+
+    set<int> visited;
+    CentroidDecomposition::findProperties(centroidRoot, sp, visited);
 
     cout<<"";
     return 0;
