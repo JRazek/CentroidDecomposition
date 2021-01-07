@@ -35,6 +35,8 @@ struct Node{
 
     map<Node *, long> parentsPathCosts;//after centroid decomposition
 
+    map<Node *, map<int, int>> occurrencesOnPathToParent;//says that there are objects of <type, quantity> on path to parent
+
     map<int, pair<Node *, long>> subtreeDistances;//closest distance to the n type of restaurant with cost of
 
     Node(int id, int objectType): id(id), objectType(objectType){};
@@ -149,9 +151,20 @@ struct CentroidDecomposition{
     }
 
     //gets all necessary properties - way from node to its root, occurrences of some type on its way
+
+    static long getPath(Node * const n1, Node * const n2, const SparseTable &sp){
+        Node * lca = sp.minRangeQuery(n1->firstEuler, n2->lastEuler);
+        return n1->parentsPathCosts[lca] + n2->parentsPathCosts[lca];
+    }
+    static bool isPresentOnPath(Node * const n1, Node * const n2, const SparseTable &sp, int type){
+        Node * lca = sp.minRangeQuery(n1->firstEuler, n2->lastEuler);
+        return (n1->occurrencesOnPathToParent[lca].find(type) != n1->occurrencesOnPathToParent[lca].end()) ||
+                (n2->occurrencesOnPathToParent[lca].find(type) != n2->occurrencesOnPathToParent[lca].end());
+    }
     static void findProperties(Node * root, const SparseTable &sp, set<int> &visited){
         visited.insert(root->id);
-        propagateProperties(root, root, sp, visited, nullptr, 0);
+        map<int,int> occurrences;
+        propagateProperties(root, root, sp, visited, nullptr, 0, occurrences);
         for(auto e : root->centroidConnections){
             if(e != root->centroidParentPath){
                 Node * another = (e->n1 != root ? e->n1 : e->n2);
@@ -159,19 +172,29 @@ struct CentroidDecomposition{
             }
         }
     }
-
-    static long getPath(Node * const n1, Node * const n2, const SparseTable &sp){
-        Node * lca = sp.minRangeQuery(n1->firstEuler, n2->lastEuler);
-        return n1->parentsPathCosts[lca] + n2->parentsPathCosts[lca];
-    }
 private:
-    static void propagateProperties(Node * n, Node * const root, const SparseTable &sp, set<int> &visited, Edge * comingFrom, long currentPathCost){
+    static void propagateProperties(Node * n, Node * const root, const SparseTable &sp, set<int> &visited, Edge * comingFrom, long currentPathCost, map<int, int> &occurrencesOnPath){
+
+        if(occurrencesOnPath.find(n->objectType) == occurrencesOnPath.end()){
+            occurrencesOnPath[n->objectType] = 1;
+        }else{
+            occurrencesOnPath[n->objectType] ++;
+        }
+        n->occurrencesOnPathToParent[root] = occurrencesOnPath;
         n->parentsPathCosts[root] = currentPathCost;
+
         for(auto e : n->connections){
             Node * another = (e->n1 != n ? e->n1 : e->n2);
             if(e != comingFrom && visited.find(another->id) == visited.end()){
-                propagateProperties(another, root, sp, visited, e, currentPathCost + e->cost);
+                propagateProperties(another, root, sp, visited, e, currentPathCost + e->cost, occurrencesOnPath);
             }
+        }
+        occurrencesOnPath[n->objectType] --;
+        if(occurrencesOnPath[n->objectType] < 0){
+            cout<<"ERRROR";
+        }
+        if(occurrencesOnPath[n->objectType] == 0){
+            occurrencesOnPath.erase(n->objectType);
         }
     }
 };
@@ -184,7 +207,9 @@ int main() {
 
     vector<Node *> nodes;
     for(int i = 0; i < nodesCount; i ++){
-        nodes.push_back(new Node(i));
+        int objectType;
+        cin >> objectType;
+        nodes.push_back(new Node(i, objectType));
     }
     for(int i = 0; i < nodesCount - 1; i ++){
         int n1ID, n2ID, cost = 1;
@@ -212,7 +237,7 @@ int main() {
     set<int> visited;
     CentroidDecomposition::findProperties(centroidRoot, sp, visited);
 
-    cout<<CentroidDecomposition::getPath(nodes[9], nodes[7], sp);
+    cout<<CentroidDecomposition::isPresentOnPath(nodes[9], nodes[4], sp, 2);
     cout<<"";
     return 0;
 }
