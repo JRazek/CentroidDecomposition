@@ -74,34 +74,37 @@ struct SparseTable{
 };
 struct CentroidDecomposition{
     //decompose the graph, recurrent function
-    static void centroidDecomposition(Node * root, Node * const startingPoint, int &edgeID){
-        Node * centroidRoot = findCentroid(root, startingPoint);//sub centroid root
+    static Node * centroidDecomposition(Node * root, Node * const startingPoint, set<Node *> &ancestors, int &edgeID){
+        Node * centroidRoot = findCentroid(root, ancestors);//sub centroid root
+        if(startingPoint != nullptr) {
+            Edge *centroidEdge = new Edge(++edgeID, centroidRoot, startingPoint);
 
-        Edge * centroidEdge = new Edge(++edgeID, centroidRoot, startingPoint);
-
-        centroidRoot->centroidParentPath = centroidEdge;
-        centroidRoot->centroidConnections.push_back(centroidEdge);
-        startingPoint->centroidConnections.push_back(centroidEdge);
-
-
-        for(auto e : centroidRoot->connections){
-            Node * another = (e->n1 != root ? e->n1 : e->n2);
-            centroidDecomposition(another, centroidRoot, edgeID);
+            centroidRoot->centroidParentPath = centroidEdge;
+            centroidRoot->centroidConnections.push_back(centroidEdge);
+            startingPoint->centroidConnections.push_back(centroidEdge);
         }
+        ancestors.insert(centroidRoot);
+        for(auto e : centroidRoot->connections){
+            Node * another = (e->n1 != centroidRoot ? e->n1 : e->n2);
+            if(ancestors.find(another) == ancestors.end()) {
+                centroidDecomposition(another, centroidRoot, ancestors, edgeID);
+            }
+        }
+        return centroidRoot;
     }
     //finding the centroid of the tree with omitting the starting point - finding the children of starting point
-    static Node * findCentroid(Node * root, const Node * startingPoint){
+    static Node * findCentroid(Node * root, set<Node *> ancestors){
         Node * centroid = root;//assuming that root is a centroid. If it has no connections satisfying - it is
 
         for(auto e : root->connections){
             Node * another = (e->n1 != root ? e->n1 : e->n2);
-            if((root->subTreeSize / 2) < another->subTreeSize && another != startingPoint){
+            if((root->subTreeSize / 2) < another->subTreeSize && ancestors.find(another) == ancestors.end()){
                 //swap subtreeSizes
                 int newRootSubTreeSize = root->subTreeSize - another->subTreeSize;
                 another->subTreeSize = root->subTreeSize;
                 root->subTreeSize = newRootSubTreeSize;
 
-                centroid = findCentroid(another, startingPoint);
+                centroid = findCentroid(another, ancestors);
 
                 //moving to another as it is now suspected to be a centroid
             }
@@ -144,16 +147,21 @@ struct CentroidDecomposition{
     }
 
     //gets all necessary properties - way from node to its root, occurrences of some type on its way
-    static void findProperties(Node * root){
+    static void findProperties(Node * root, const SparseTable &sp){
         for(auto e : root->centroidConnections){
             if(e != root->centroidParentPath){
                 Node * another = (e->n1 != root ? e->n1 : e->n2);
-                findProperties(another);
+                findProperties(another, sp);
             }
         }
     }
-    static void propagateProperties(Node * n, Node * const root, long currentPath){
+    static void propagateProperties(Node * n, Node * const root, const SparseTable &sp, long currentPath){
+        for(auto e : n->connections){
+            Node * another = (e->n1 != root ? e->n1 : e->n2);
+            if(!isAncestor(another, root, sp)){
 
+            }
+        }
     }
 
 };
@@ -181,7 +189,14 @@ int main() {
         n2->connections.push_back(e);
     }
     CentroidDecomposition::rootAndSubTreeSizes(nodes[0], nullptr);
-    Node * centroid = CentroidDecomposition::findCentroid(nodes[0], nodes[0]);
+
+    int edgeID = 0;
+    set<Node *> ancestors;
+    Node * centroidRoot = CentroidDecomposition::centroidDecomposition(nodes[0], nullptr, ancestors, edgeID);
+
+    vector<Node *> eulerTour;
+    CentroidDecomposition::eulerTour(centroidRoot, eulerTour);
+
 
     cout<<"";
     return 0;
