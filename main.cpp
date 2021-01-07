@@ -151,7 +151,6 @@ struct CentroidDecomposition{
     }
 
     //gets all necessary properties - way from node to its root, occurrences of some type on its way
-
     static long getPath(Node * const n1, Node * const n2, const SparseTable &sp){
         Node * lca = sp.minRangeQuery(n1->firstEuler, n2->lastEuler);
         return n1->parentsPathCosts[lca] + n2->parentsPathCosts[lca];
